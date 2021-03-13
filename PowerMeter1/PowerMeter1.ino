@@ -1,3 +1,46 @@
+<<<<<<< HEAD
+class PowerMeter
+{
+  public:
+    PowerMeter(int CLKPin = D2, int MISOPin = D5);
+    void CLK_ISR();
+    void tick();
+  private:
+    void doInSync();
+    void clearTallys();
+    void updateTallys(float volts, float watts);
+    
+    int _CLKPin;
+    int _MISOPin;
+
+    //All variables that are changed in the interrupt function must be volatile to make sure changes are saved.
+    volatile int Ba = 0;   //Store MISO-byte 1
+    volatile int Bb = 0;   //Store MISO-byte 2
+    volatile int Bc = 0;   //Store MISO-byte 2
+    float U = 0;    //voltage
+    float P = 0;    //power
+    
+    volatile long CountBits = 0;      //Count read bits
+    volatile long ClkHighCount = 0;   //Number of CLK-highs (find start of a Byte)
+    volatile boolean inSync = false;  //as long as we ar in SPI-sync
+    volatile boolean NextBit = true;  //A new bit is detected
+    
+    volatile unsigned int isrTriggers; // for debugging to see if ISR routine is being called
+    
+    float avgVolts, minVolts, maxVolts;
+    float avgWatts, minWatts, maxWatts;
+    int numReadings;
+};
+
+PowerMeter::PowerMeter(int CLKPin, int MISOPin){
+  _CLKPin = CLKPin;
+  _MISOPin = MISOPin;
+  clearTallys();
+}
+void PowerMeter::tick(){
+  if (inSync == true) {
+    doInSync();
+=======
 /*
  Sends voltage and power from China-style energy meter to the Internet.
  Collecting data by eavesdropping on the MOSI-line (master in slave out)
@@ -91,61 +134,57 @@ void doOTA() {
   while (true) { // 120 secs = 2 minutes
      ArduinoOTA.handle();
      delay(10);
+>>>>>>> 42bac9358fbefde8d2dfd1f39ea055bd59113076
   } 
 }
-
-void doWifiManager() {
-  WiFiManager wifiManager;
-  wifiManager.setTimeout(180);
-  if(!wifiManager.autoConnect("PowerMeter-" + ESP.getChipId())) {
-    Serial.println("failed to connect and hit timeout. Restarting...");
-    delay(3000);
-    ESP.reset();
-    delay(5000);
-  }
-
-  //if you get here you have connected to the WiFi
-  Serial.print("WiFi connected to "); Serial.print(WiFi.SSID());
-  Serial.print(", IP address: "); Serial.println(WiFi.localIP());
-}
-
-void doConfig() {
-   doWifiManager();
-   doOTA();
-}
-
-void clearTallys() {
+void PowerMeter::clearTallys() {
   numReadings = 0;
   minVolts = 9999;
   maxVolts = -9999;
   minWatts = 9999;
   maxWatts = -9999;
 }
+void PowerMeter::updateTallys(float volts, float watts) {
 
-void updateTallys(float volts, float watts) {
-
-  // a running average calculation
   avgVolts = (volts + (numReadings * avgVolts)) / (numReadings + 1);
   avgWatts = (watts + (numReadings * avgWatts)) / (numReadings + 1);
 
-// min and max appear not to be working on ESP8266! See https://github.com/esp8266/Arduino/issues/398
-//  minVolts = min(minVolts, volts);
-//  maxVolts = max(maxVolts, volts);
   if (volts < minVolts) minVolts = volts;
   if (volts > maxVolts) maxVolts = volts;
-//  minWatts = min(minWatts, watts);
-//  maxWatts = max(maxWatts, watts);
   if (watts < minWatts) minWatts = watts;
   if (watts > maxWatts) maxWatts = watts;
 
   numReadings += 1;
 
-  Serial.print("Readings="); Serial.println(numReadings);
-  Serial.print("Volts: "); Serial.print(volts);Serial.print(" avg="); Serial.print(avgVolts); Serial.print(" min="); Serial.print(minVolts); Serial.print(" max="); Serial.println(maxVolts);
-  Serial.print("Watts: "); Serial.print(watts); Serial.print(" avg="); Serial.print(avgWatts); Serial.print(" min="); Serial.print(minWatts); Serial.print(" max="); Serial.println(maxWatts);
+  //Serial.print("Readings="); Serial.println(numReadings);
+  Serial.print("Вольты: "); Serial.print(volts); Serial.print(" ");
+  //Serial.print(" avg="); Serial.print(avgVolts); Serial.print(" min="); Serial.print(minVolts); Serial.print(" max="); Serial.println(maxVolts);
+  Serial.print("Ватты: "); Serial.println(watts); 
+  //Serial.print(" avg="); Serial.print(avgWatts); Serial.print(" min="); Serial.print(minWatts); Serial.print(" max="); Serial.println(maxWatts);
+}
+void PowerMeter::CLK_ISR() {
+  isrTriggers += 1;
+  //if we are trying to find the sync-time (CLK goes high for 1-2ms)
+  if (inSync == false) {
+    ClkHighCount = 0;
+    //Register how long the ClkHigh is high to evaluate if we are at the part wher clk goes high for 1-2 ms
+    while (digitalRead(_CLKPin) == HIGH) {
+      ClkHighCount += 1;
+      delayMicroseconds(30);  //can only use delayMicroseconds in an interrupt.
+    }
+    //if the Clk was high between 1 and 2 ms than, its a start of a SPI-transmission
+    if (ClkHighCount >= 33 && ClkHighCount <= 67) {
+      inSync = true;
+    }
+  }
+  else { //we are in sync and logging CLK-highs
+    //increment an integer to keep track of how many bits we have read.
+    CountBits += 1;
+    NextBit = true;
+  }
 }
 
-void doInSync() {
+void PowerMeter::doInSync() {
     CountBits = 0;  //CLK-interrupt increments CountBits when new bit is received
     while (CountBits < 40) {} //skip the uninteresting 5 first bytes
     CountBits = 0;
@@ -156,7 +195,7 @@ void doInSync() {
         if (CountBits < 9) { //first Byte/8 bits in Ba
           Ba = (Ba << 1);  //Shift Ba one bit to left and store MISO-value (0 or 1) (see http://arduino.cc/en/Reference/Bitshift)
           //read MISO-pin, if high: make Ba[0] = 1
-          if (digitalRead(MISOPin) == HIGH) {
+          if (digitalRead(_MISOPin) == HIGH) {
             Ba |= (1 << 0); //changes first bit of Ba to "1"
           }   //doesn't need "else" because BaBb[0] is zero if not changed.
           NextBit = false; //reset NextBit in wait for next CLK-interrupt
@@ -164,7 +203,7 @@ void doInSync() {
         else if (CountBits < 17) { //bit 9-16 is byte 7, stor in Bb
           Bb = Bb << 1;  //Shift Ba one bit to left and store MISO-value (0 or 1)
           //read MISO-pin, if high: make Ba[0] = 1
-          if (digitalRead(MISOPin) == HIGH) {
+          if (digitalRead(_MISOPin) == HIGH) {
             Bb |= (1 << 0); //changes first bit of Bb to "1"
           }
           NextBit = false; //reset NextBit in wait for next CLK-interrupt
@@ -189,7 +228,7 @@ void doInSync() {
           if (CountBits < 9) {
             Ba = (Ba << 1);  //Shift Ba one bit to left and store MISO-value (0 or 1)
             //read MISO-pin, if high: make Ba[0] = 1
-            if (digitalRead(MISOPin) == HIGH) {
+            if (digitalRead(_MISOPin) == HIGH) {
               Ba |= (1 << 0); //changes first bit of Ba to "1"
             }
             NextBit = false;
@@ -197,7 +236,7 @@ void doInSync() {
           else if (CountBits < 17) {
             Bb = Bb << 1;  //Shift Ba one bit to left and store MISO-value (0 or 1)
             //read MISO-pin, if high: make Ba[0] = 1
-            if (digitalRead(MISOPin) == HIGH) {
+            if (digitalRead(_MISOPin) == HIGH) {
               Bb |= (1 << 0); //changes first bit of Bb to "1"
             }
             NextBit = false;
@@ -205,7 +244,7 @@ void doInSync() {
           else {
             Bc = Bc << 1;  //Shift Bc one bit to left and store MISO-value (0 or 1)
             //read MISO-pin, if high: make Bc[0] = 1
-            if (digitalRead(MISOPin) == HIGH) {
+            if (digitalRead(_MISOPin) == HIGH) {
               Bc |= (1 << 0); //changes first bit of Bc to "1"
             }
             NextBit = false;
@@ -231,6 +270,8 @@ void doInSync() {
       Serial.println("Nothing connected, or out of sync!");
     }
 }
+<<<<<<< HEAD
+=======
 
 //Function that triggers whenever CLK-pin is rising (goes high)
 void CLK_ISR() {
@@ -401,3 +442,4 @@ void loop() {
      doInSync();
   }
 }
+>>>>>>> 42bac9358fbefde8d2dfd1f39ea055bd59113076
