@@ -12,6 +12,7 @@
  Ant Elder
  License: Apache License v2
 */
+void ICACHE_RAM_ATTR CLK_ISR();
 #include <ESP8266WiFi.h>
 extern "C" {
   #include "user_interface.h" // for wifi_station_connect
@@ -29,14 +30,14 @@ extern "C" {
 #include <ArduinoOTA.h>  // OTA currentlr requires Arduino IDE 1.6.7
                          // OTA needs ESP module with large enough flash. Basic ESP-01/ESP-12 not big enough, ESP-12E works
                                   
-#define CONFIG_BUTTON 12
+#define CONFIG_BUTTON D6
 
 const char* host = "data.sparkfun.com";
 const char* streamId   = "5JpMjVaVVjcz5EA7ORjK";
 const char* privateKey = "xxxxxxxxxxxxxxxxxxxx";
 
-const int CLKPin = 4; // Pin connected to CLK (D2 & INT0)
-const int MISOPin = 5;  // Pin connected to MISO (D5)
+const int CLKPin = D2; // Pin connected to CLK (D2 & INT0)
+const int MISOPin = D5;  // Pin connected to MISO (D5)
 
 const int SEND_INTERVAL = 60 * 60 * 1000; // 60 minutes
 
@@ -400,4 +401,3 @@ void loop() {
      doInSync();
   }
 }
-
