@@ -8,7 +8,6 @@ class PowerMeter
     
   private:
     void doInSync();
-//    void clearTallys();
     void updateTallys(float volts, float watts);
     
     int _CLKPin;
@@ -28,15 +27,11 @@ class PowerMeter
     boolean event=false;
     volatile unsigned int isrTriggers; // for debugging to see if ISR routine is being called
     float volts, watts;
-//    float avgVolts, minVolts, maxVolts;
-//    float avgWatts, minWatts, maxWatts;
-//    int numReadings;
 };
 
 PowerMeter::PowerMeter(int CLKPin, int MISOPin){
   _CLKPin = CLKPin;
   _MISOPin = MISOPin;
-//  clearTallys();
 }
 boolean PowerMeter::tick(){
   if (inSync == true) {
@@ -44,35 +39,10 @@ boolean PowerMeter::tick(){
   } 
   return event;
 }
-//void PowerMeter::clearTallys() {
-//  numReadings = 0;
-//  minVolts = 9999;
-//  maxVolts = -9999;
-//  minWatts = 9999;
-//  maxWatts = -9999;
-//}
 String PowerMeter::GetStatus(){
   event=false;
   return "Volts: "+String(volts)+" "+"Watts: "+watts;
 }
-//void PowerMeter::updateTallys(float volts, float watts) {
-
-//  avgVolts = (volts + (numReadings * avgVolts)) / (numReadings + 1);
-//  avgWatts = (watts + (numReadings * avgWatts)) / (numReadings + 1);
-
-//  if (volts < minVolts) minVolts = volts;
-//  if (volts > maxVolts) maxVolts = volts;
-//  if (watts < minWatts) minWatts = watts;
-//  if (watts > maxWatts) maxWatts = watts;
-
-//  numReadings += 1;
-
-  //Serial.print("Readings="); Serial.println(numReadings);
-//  Serial.print("Volts: "); Serial.print(volts); Serial.print(" ");
-  //Serial.print(" avg="); Serial.print(avgVolts); Serial.print(" min="); Serial.print(minVolts); Serial.print(" max="); Serial.println(maxVolts);
-//  Serial.print("Watts: "); Serial.println(watts); 
-  //Serial.print(" avg="); Serial.print(avgWatts); Serial.print(" min="); Serial.print(minWatts); Serial.print(" max="); Serial.println(maxWatts);
-//}
 void PowerMeter::CLK_ISR() {
   isrTriggers += 1;
   //if we are trying to find the sync-time (CLK goes high for 1-2ms)
@@ -172,10 +142,7 @@ void PowerMeter::doInSync() {
          volts=U;
          watts=P;
          event=true;
-      } else {
-        Serial.print(".");
       }
-
       inSync = false; //reset sync variable to make sure next reading is in sync.
     }
 
