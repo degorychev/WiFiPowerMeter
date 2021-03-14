@@ -3,10 +3,12 @@ class PowerMeter
   public:
     PowerMeter(int CLKPin = D2, int MISOPin = D5);
     void CLK_ISR();
-    void tick();
+    boolean tick();
+    String GetStatus();
+    
   private:
     void doInSync();
-    void clearTallys();
+//    void clearTallys();
     void updateTallys(float volts, float watts);
     
     int _CLKPin;
@@ -23,49 +25,54 @@ class PowerMeter
     volatile long ClkHighCount = 0;   //Number of CLK-highs (find start of a Byte)
     volatile boolean inSync = false;  //as long as we ar in SPI-sync
     volatile boolean NextBit = true;  //A new bit is detected
-    
+    boolean event=false;
     volatile unsigned int isrTriggers; // for debugging to see if ISR routine is being called
-    
-    float avgVolts, minVolts, maxVolts;
-    float avgWatts, minWatts, maxWatts;
-    int numReadings;
+    float volts, watts;
+//    float avgVolts, minVolts, maxVolts;
+//    float avgWatts, minWatts, maxWatts;
+//    int numReadings;
 };
 
 PowerMeter::PowerMeter(int CLKPin, int MISOPin){
   _CLKPin = CLKPin;
   _MISOPin = MISOPin;
-  clearTallys();
+//  clearTallys();
 }
-void PowerMeter::tick(){
+boolean PowerMeter::tick(){
   if (inSync == true) {
     doInSync();
   } 
+  return event;
 }
-void PowerMeter::clearTallys() {
-  numReadings = 0;
-  minVolts = 9999;
-  maxVolts = -9999;
-  minWatts = 9999;
-  maxWatts = -9999;
+//void PowerMeter::clearTallys() {
+//  numReadings = 0;
+//  minVolts = 9999;
+//  maxVolts = -9999;
+//  minWatts = 9999;
+//  maxWatts = -9999;
+//}
+String PowerMeter::GetStatus(){
+  event=false;
+  return "Volts: "+String(volts)+" "+"Watts: "+watts;
 }
-void PowerMeter::updateTallys(float volts, float watts) {
+//void PowerMeter::updateTallys(float volts, float watts) {
 
-  avgVolts = (volts + (numReadings * avgVolts)) / (numReadings + 1);
-  avgWatts = (watts + (numReadings * avgWatts)) / (numReadings + 1);
+//  avgVolts = (volts + (numReadings * avgVolts)) / (numReadings + 1);
+//  avgWatts = (watts + (numReadings * avgWatts)) / (numReadings + 1);
 
-  if (volts < minVolts) minVolts = volts;
-  if (volts > maxVolts) maxVolts = volts;
-  if (watts < minWatts) minWatts = watts;
-  if (watts > maxWatts) maxWatts = watts;
+//  if (volts < minVolts) minVolts = volts;
+//  if (volts > maxVolts) maxVolts = volts;
+//  if (watts < minWatts) minWatts = watts;
+//  if (watts > maxWatts) maxWatts = watts;
 
-  numReadings += 1;
+//  numReadings += 1;
 
   //Serial.print("Readings="); Serial.println(numReadings);
-  Serial.print("Volts: "); Serial.print(volts); Serial.print(" ");
+//  Serial.print("Volts: "); Serial.print(volts); Serial.print(" ");
   //Serial.print(" avg="); Serial.print(avgVolts); Serial.print(" min="); Serial.print(minVolts); Serial.print(" max="); Serial.println(maxVolts);
-  Serial.print("Watts: "); Serial.println(watts); 
+//  Serial.print("Watts: "); Serial.println(watts); 
   //Serial.print(" avg="); Serial.print(avgWatts); Serial.print(" min="); Serial.print(minWatts); Serial.print(" max="); Serial.println(maxWatts);
-}
+//}
 void PowerMeter::CLK_ISR() {
   isrTriggers += 1;
   //if we are trying to find the sync-time (CLK goes high for 1-2ms)
@@ -161,7 +168,10 @@ void PowerMeter::doInSync() {
       P = ((float)Ba * 255 + (float)Bb + (float)Bc / 255.0) / 2;
 
       if (U > 200 && U < 300 && P >= 0 && P < 4000) { // ignore spurious readings with voltage or power out of normal range
-         updateTallys(U, P);
+         //updateTallys(U, P);
+         volts=U;
+         watts=P;
+         event=true;
       } else {
         Serial.print(".");
       }

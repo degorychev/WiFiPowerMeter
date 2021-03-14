@@ -1,12 +1,9 @@
 void ICACHE_RAM_ATTR ISR();
 #include <ESP8266WiFi.h>
-
-
 #define CONFIG_BUTTON D6
 const int CLKPin = D2; // Pin connected to CLK (D2 & INT0)
 const int MISOPin = D5;  // Pin connected to MISO (D5)
 
-unsigned long debugOps;
 PowerMeter PMobj(CLKPin, MISOPin);
 void setup() {
   Serial.begin(115200); Serial.println();
@@ -26,5 +23,9 @@ void ISR(){
 }
 
 void loop() {
-  PMobj.tick();
+  if(PMobj.tick())
+    Serial.println(PMobj.GetStatus());  
+  if (digitalRead(CONFIG_BUTTON) == LOW) {
+    Serial.println("Кнопка");  
+  }
 }
