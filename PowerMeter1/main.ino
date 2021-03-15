@@ -1,5 +1,9 @@
 void ICACHE_RAM_ATTR ISR();
 #include <ESP8266WiFi.h>
+#include <DNSServer.h>
+#include <ESP8266WebServer.h>
+#include <WiFiManager.h>
+#define postingInterval  300000  
 #define CONFIG_BUTTON D6
 const int CLKPin = D2; // Pin connected to CLK (D2 & INT0)
 const int MISOPin = D5;  // Pin connected to MISO (D5)
@@ -7,8 +11,12 @@ const int MISOPin = D5;  // Pin connected to MISO (D5)
 const char* ssid     = "VEHomeLan2G";
 const char* password = "qwertyui";
 WiFiServer server(80);
+unsigned long lastConnectionTime = 0;
 
 PowerMeter PMobj(CLKPin, MISOPin);
+AvgValue avgU = AvgValue();//Среднее напряжение
+AvgValue avgP = AvgValue();//Средняя мощность
+
 void setup() {
   Serial.begin(115200); 
   Serial.println("Loading");
@@ -18,6 +26,14 @@ void setup() {
   Serial.println("2s");
   delay(1000);
   Serial.println("3s");
+
+  
+  Hostname = "ESP"+WiFi.macAddress();
+  Hostname.replace(":","");
+  WiFi.hostname(Hostname);
+  Serial.println(WiFi.localIP()); Serial.println(WiFi.macAddress()); Serial.print("Narodmon ID: "); Serial.println(Hostname);
+  lastConnectionTime = millis() - postingInterval + 15000; //первая передача на народный мониторинг через 15 сек.
+
   
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -49,10 +65,26 @@ void ISR(){
 }
 
 void loop() {
-  if(PMobj.tick())
+  if(PMobj.tick())//Если пришли новые данные с ваттметра
+  {
+    avgU.AddValue(PMobj.GetVolts());
+    avgP.AddValue(PMobj.GetWatts());
+
     Serial.println(PMobj.GetStatus());  
+  }
   if (digitalRead(CONFIG_BUTTON) == LOW) 
     Serial.println("Кнопка");  
   webrequest();
-  
+  if (millis() - lastConnectionTime > postingInterval) { // ждем 5 минут и отправляем
+    if (WiFi.status() == WL_CONNECTED) { // ну конечно если подключены
+      if (SendToNarodmon(avgU.GetValue(), avgP.GetValue())) {
+        Serial.println("Данные ушли V:"+String(avgU.GetValue())+" P:"+String(avgP.GetValue()));          
+        avgU = AvgValue();
+        avgP = AvgValue();//Обнуляем среднее чтобы получить более резкий график
+        
+        lastConnectionTime = millis();
+      }else{  lastConnectionTime = millis() - postingInterval + 15000; }//следующая попытка через 15 сек    
+    }else{  lastConnectionTime = millis() - postingInterval + 15000; Serial.println("Not connected to WiFi");}//следующая попытка через 15 сек
+  }  
+  yield(); // что за команда - фиг знает, но ESP работает с ней стабильно и не глючит.
 }

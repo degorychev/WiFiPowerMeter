@@ -5,6 +5,8 @@ class PowerMeter
     void CLK_ISR();
     boolean tick();
     String GetStatus();
+    float GetVolts();
+    float GetWatts();
     
   private:
     void doInSync();
@@ -38,6 +40,12 @@ boolean PowerMeter::tick(){
     doInSync();
   } 
   return event;
+}
+float PowerMeter::GetVolts(){
+  return volts;
+}
+float PowerMeter::GetWatts(){
+  return watts;
 }
 String PowerMeter::GetStatus(){
   event=false;
