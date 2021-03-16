@@ -38,8 +38,14 @@ void setup() {
   Serial.print("Connecting to ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
+  
+  int counter = 0;
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+    delay(200);
+    if (++counter > 100) {
+      Serial.print("rebooting...");
+      ESP.restart();
+    }
     Serial.print(".");
   }
   // Print local IP address and start web server
@@ -69,9 +75,9 @@ void loop() {
   {
     avgU.AddValue(PMobj.GetVolts());
     avgP.AddValue(PMobj.GetWatts());
-
     Serial.println(PMobj.GetStatus());  
   }
+  yield();
   if (digitalRead(CONFIG_BUTTON) == LOW) 
     Serial.println("Кнопка");  
   webrequest();
@@ -86,5 +92,5 @@ void loop() {
       }else{  lastConnectionTime = millis() - postingInterval + 15000; }//следующая попытка через 15 сек    
     }else{  lastConnectionTime = millis() - postingInterval + 15000; Serial.println("Not connected to WiFi");}//следующая попытка через 15 сек
   }  
-  yield(); // что за команда - фиг знает, но ESP работает с ней стабильно и не глючит.
+  yield();
 }
