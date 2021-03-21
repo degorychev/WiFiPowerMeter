@@ -3,7 +3,7 @@ void ICACHE_RAM_ATTR ISR();
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 #include <WiFiManager.h>
-#define postingInterval  300000  
+#define postingInterval  300000
 #define CONFIG_BUTTON D6
 const int CLKPin = D2; // Pin connected to CLK (D2 & INT0)
 const int MISOPin = D5;  // Pin connected to MISO (D5)
@@ -18,7 +18,7 @@ AvgValue avgU = AvgValue();//Среднее напряжение
 AvgValue avgP = AvgValue();//Средняя мощность
 
 void setup() {
-  Serial.begin(115200); 
+  Serial.begin(115200);
   Serial.println("Loading");
   delay(1000);
   Serial.println("1s");
@@ -27,18 +27,18 @@ void setup() {
   delay(1000);
   Serial.println("3s");
 
-  
-  Hostname = "ESP"+WiFi.macAddress();
-  Hostname.replace(":","");
+
+  Hostname = "ESP" + WiFi.macAddress();
+  Hostname.replace(":", "");
   WiFi.hostname(Hostname);
   Serial.println(WiFi.localIP()); Serial.println(WiFi.macAddress()); Serial.print("Narodmon ID: "); Serial.println(Hostname);
-  lastConnectionTime = millis() - postingInterval + 15000; //первая передача на народный мониторинг через 15 сек.
+  lastConnectionTime = millis() - postingInterval + 60000; //первая передача на народный мониторинг через 60 сек.
 
-  
+
   Serial.print("Connecting to ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
-  
+
   int counter = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(200);
@@ -54,43 +54,60 @@ void setup() {
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
   server.begin();
-  
+
   pinMode(CONFIG_BUTTON, INPUT_PULLUP);
   if (digitalRead(CONFIG_BUTTON) == LOW) {
-    Serial.println("config button pressed");  
+    Serial.println("config button pressed");
   }
   Serial.println("Конфиг после перевода на ООП");
-  
+
   attachInterrupt(digitalPinToInterrupt(CLKPin), ISR, RISING);
   pinMode(CLKPin, INPUT);
   pinMode(MISOPin, INPUT);
 }
 
-void ISR(){
+void ISR() {
   PMobj.CLK_ISR();
 }
 
 void loop() {
-  if(PMobj.tick())//Если пришли новые данные с ваттметра
+  if (PMobj.tick()) //Если пришли новые данные с ваттметра
   {
     avgU.AddValue(PMobj.GetVolts());
     avgP.AddValue(PMobj.GetWatts());
-    Serial.println(PMobj.GetStatus());  
+    Serial.println(PMobj.GetStatus());
   }
   yield();
-  if (digitalRead(CONFIG_BUTTON) == LOW) 
-    Serial.println("Кнопка");  
+  if (digitalRead(CONFIG_BUTTON) == LOW)
+    Serial.println("Кнопка");
   webrequest();
   if (millis() - lastConnectionTime > postingInterval) { // ждем 5 минут и отправляем
     if (WiFi.status() == WL_CONNECTED) { // ну конечно если подключены
       if (SendToNarodmon(avgU.GetValue(), avgP.GetValue())) {
-        Serial.println("Данные ушли V:"+String(avgU.GetValue())+" P:"+String(avgP.GetValue()));          
+        Serial.println("Данные ушли V:" + String(avgU.GetValue()) + " P:" + String(avgP.GetValue()));
         avgU = AvgValue();
         avgP = AvgValue();//Обнуляем среднее чтобы получить более резкий график
-        
+        watchdog(true);
         lastConnectionTime = millis();
-      }else{  lastConnectionTime = millis() - postingInterval + 15000; }//следующая попытка через 15 сек    
-    }else{  lastConnectionTime = millis() - postingInterval + 15000; Serial.println("Not connected to WiFi");}//следующая попытка через 15 сек
-  }  
+      } else {
+        watchdog(false);
+        lastConnectionTime = millis() - postingInterval + 15000;  //следующая попытка через 15 сек
+      }
+    } else {
+      watchdog(false);
+      lastConnectionTime = millis() - postingInterval + 15000;  //следующая попытка через 15 сек
+      Serial.println("Not connected to WiFi");
+    }
+  }
   yield();
+}
+
+int counter = 0;
+void watchdog(bool accuracy){
+  if(accuracy)
+    counter =0;
+  else if (++counter > 100) {
+    Serial.print("rebooting...");
+    ESP.restart();
+  }
 }

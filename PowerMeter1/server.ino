@@ -1,6 +1,6 @@
 String header;
 WiFiClient client;
-void webrequest(){
+void webrequest() {
   client = server.available();
   if (client) {                             // If a new client connects,
     Serial.println("New Client.");          // print a message out in the serial port
@@ -16,7 +16,7 @@ void webrequest(){
           if (currentLine.length() == 0) {
             generatorPage(PMobj.GetStatus());
             break;
-            } else { // if you got a newline, then clear currentLine
+          } else { // if you got a newline, then clear currentLine
             currentLine = "";
           }
         } else if (c != '\r') {  // if you got anything else but a carriage return character,
@@ -33,7 +33,7 @@ void webrequest(){
   }
 }
 
-void generatorPage(String PMstatus){
+void generatorPage(String PMstatus) {
   client.println("HTTP/1.1 200 OK");
   client.println("Content-type:text/html");
   client.println("Connection: close");
@@ -46,5 +46,5 @@ void generatorPage(String PMstatus){
   client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
   client.println(".button2 {background-color: #77878A;}</style></head>");
   client.println("<body><h1>ESP8266 Web Server</h1>");
-  client.println("<p>"+PMstatus+"</p>");
+  client.println("<p>" + PMstatus + "</p>");
 }
