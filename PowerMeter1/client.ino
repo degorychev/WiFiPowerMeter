@@ -33,6 +33,9 @@ class AvgValue {
       totalValue = 0;
       count = 0;
     }
+    bool GetState(){
+      return count>0;
+    }
     void AddValue(float value) {
       totalValue += value;
       count++;

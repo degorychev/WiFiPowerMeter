@@ -82,7 +82,7 @@ void loop() {
     Serial.println("Кнопка");
   webrequest();
   if (millis() - lastConnectionTime > postingInterval) { // ждем 5 минут и отправляем
-    if (WiFi.status() == WL_CONNECTED) { // ну конечно если подключены
+    if ((WiFi.status() == WL_CONNECTED) && avgU.GetState() && avgP.GetState()) { // если подключены и есть данные для отправки
       if (SendToNarodmon(avgU.GetValue(), avgP.GetValue())) {
         Serial.println("Данные ушли V:" + String(avgU.GetValue()) + " P:" + String(avgP.GetValue()));
         avgU = AvgValue();
